@@ -1,10 +1,16 @@
-﻿namespace AILab1
+﻿using System.Reflection.Emit;
+using AIModel;
+
+namespace AILab1
 {
     internal class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello, World!");
+            string? file = LabDo.FileCSV;
+
+            LabDo.foo();
+
         }
     }
 }
