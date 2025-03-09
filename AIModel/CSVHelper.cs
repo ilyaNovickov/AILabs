@@ -12,5 +12,19 @@
 
             return CSV;
         }
+
+        public static void Write(string path, IEnumerable<double> data)
+        {
+            using (FileStream s = new FileStream(path, FileMode.Create, FileAccess.Write))
+            using (StreamWriter sw = new StreamWriter(s))
+            {
+                sw.WriteLine("Index;Val");
+
+                for (int i = 0; i < data.Count(); i++)
+                {
+                    sw.WriteLine($"{i};{data.ElementAt<double>(i)}");
+                }
+            }
+        }
     }
 }

@@ -7,9 +7,23 @@ namespace AILab1
     {
         static void Main(string[] args)
         {
-            string? file = LabDo.FileCSV;
+            Logger.FilePath = "log.txt";
+            Logger.LogEvent += (sender, e) => { Console.WriteLine(e.Message); };
 
-            LabDo.foo();
+            Console.CancelKeyPress += Console_CancelKeyPress;
+
+            StartNeura.FileCSV = "mnist_train.csv";
+
+            StartNeura.RunLearning();
+
+            Logger.Log($"Время обучения : {StartNeura.Time.ToString("hh\\:mm\\:ss")}");
+
+            StartNeura.TestNeuraExtra();
+        }
+
+        private static void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+        {
+            StartNeura.Stop();
 
         }
     }

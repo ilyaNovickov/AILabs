@@ -1,20 +1,9 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using MathNet.Numerics.LinearAlgebra.Double;
 using System.Text.Json;
-using System.Threading.Tasks;
-using System.Text.Json;
-using System.IO;
 
 namespace AIModel
 {
-    internal class Class1
-    {
-    }
-
-
 
     // Класс для хранения весов
     public class ModelWeights
@@ -40,10 +29,13 @@ namespace AIModel
                 B3 = b3.ToArray()
             };
 
-            string json = JsonSerializer.Serialize(weights, new JsonSerializerOptions { WriteIndented = true });
+            var options = new JsonSerializerOptions();
+            options.WriteIndented = true;
+            options.Converters.Add(new TwoDimensionalIntArrayJsonConverter());
+            string json = JsonSerializer.Serialize(weights, options);
             File.WriteAllText(filePath, json);
 
-            Console.WriteLine("✅ Веса успешно сохранены!");
+            Logger.Log("Веса успешно сохранены!");
         }
 
         public static (Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>)
@@ -53,7 +45,9 @@ namespace AIModel
                 throw new FileNotFoundException("Файл с весами не найден!");
 
             string json = File.ReadAllText(filePath);
-            ModelWeights weights = JsonSerializer.Deserialize<ModelWeights>(json);
+            var options = new JsonSerializerOptions();
+            options.Converters.Add(new TwoDimensionalIntArrayJsonConverter());
+            ModelWeights weights = JsonSerializer.Deserialize<ModelWeights>(json, options);
 
             Matrix<double> w1 = DenseMatrix.OfArray(weights.W1);
             Matrix<double> b1 = DenseMatrix.OfArray(weights.B1);
@@ -62,10 +56,10 @@ namespace AIModel
             Matrix<double> w3 = DenseMatrix.OfArray(weights.W3);
             Matrix<double> b3 = DenseMatrix.OfArray(weights.B3);
 
-            Console.WriteLine("✅ Веса успешно загружены!");
+            Logger.Log("Веса успешно загружены!");
             return (w1, b1, w2, b2, w3, b3);
         }
     }
 
-    
+
 }
