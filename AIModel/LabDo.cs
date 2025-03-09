@@ -7,6 +7,11 @@ using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Storage;
 using MathNet.Numerics.LinearAlgebra.Double;
 using MathNet.Numerics.Distributions;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+using System.Xml.Serialization;
+using System.Diagnostics;
 
 namespace AIModel
 {
@@ -29,6 +34,8 @@ namespace AIModel
         {
             //double E2 = CrossEntropia(1, Matrix<double>.Build.DenseOfArray(new double[,] { { 0.1, 0.7, 0.2 } }));
 
+            //!!!var (w1, b1, w2, b2, w3, b3) = LoadWeights("model_weights.json");
+
             #region chooseFuncs
             Func<double, double> activationFunc = Relu;//функция активации
             Func<double, double> divActivationFunc = DivRelu;//Производная функции активации
@@ -36,8 +43,10 @@ namespace AIModel
 
             double learningRate = 0.001d;
 
-
             IEnumerable<string[]> data =  CSVHelper.ReadCSV(FileCSV);
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
 
             #region layersValues
             int n = 10, firstLay = 10;//кол-во нейронов в слое №1
@@ -78,9 +87,9 @@ namespace AIModel
                     Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(vals).ToRowMatrix();//Входной вектор X (28*28=784)
 
                     /*Слой №1*/
-                    w1 = DenseMatrix.Build.Random(inputX.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
+                    //w1 = DenseMatrix.Build.Random(inputX.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
 
-                    b1 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
+                    //b1 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
 
                     Matrix<double> t1 = inputX * w1 + b1;//вектор t
 
@@ -90,9 +99,9 @@ namespace AIModel
                     /*КОНЕЦ Слой №1*/
 
                     /*Слой №2*/
-                    w2 = DenseMatrix.Build.Random(w1.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
+                    //w2 = DenseMatrix.Build.Random(w1.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
 
-                    b2 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
+                    //b2 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
 
                     Matrix<double> t2 = h1 * w2 + b2;//вектор t
                     Matrix<double> h2 = t2.Map(activationFunc);
@@ -100,9 +109,9 @@ namespace AIModel
                     /*КОНЕЦ Слой №2*/
 
                     /*Слой №3*/
-                    w3 = DenseMatrix.Build.Random(w2.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
+                    //w3 = DenseMatrix.Build.Random(w2.ColumnCount, n, new ContinuousUniform(-1d, +1d));//матрица весов W
 
-                    b3 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
+                    //b3 = Vector<double>.Build.Random(n, new ContinuousUniform(-1d, +1d)).ToRowMatrix();//матрица смещений b
 
                     Matrix<double> t3 = h2 * w3 + b3;//вектор t
 
@@ -140,9 +149,15 @@ namespace AIModel
                     b1 = b1 - learningRate * dE_db1;
                     #endregion
                 }
-            }
-            
 
+                double accuracy = CalculateAccuracy(data, w1, b1, w2, b2, w3, b3);
+                Console.WriteLine($"Accuracy: {accuracy * 100:F2}%");
+            }
+
+            //!!!SaveWeights("model_weights.json", w1, b1, w2, b2, w3, b3);
+
+            sw.Stop();
+            int stopper = 1;
         }
 
         //[Obsolete]
@@ -210,6 +225,44 @@ namespace AIModel
         public static double CrossEntropia(double y, Matrix<double> z)
         {
             return -Math.Log(z.At(0, (int)y));
+        }
+
+        public static double CalculateAccuracy(IEnumerable<string[]> testData, Matrix<double> w1, Matrix<double> b1,
+                                      Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3)
+        {
+            int correctPredictions = 0;
+            int totalSamples = testData.Count();
+
+            foreach (var row in testData)
+            {
+                double trueLabel = double.Parse(row[0]); // Истинное значение
+
+                // Извлекаем пиксели изображения и нормализуем
+                List<double> pixelValues = row.Skip(1).Select(val => double.Parse(val) / 255.0).ToList();
+                Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(pixelValues).ToRowMatrix();
+
+                // Прямой проход (forward propagation)
+                Matrix<double> t1 = inputX * w1 + b1;
+                Matrix<double> h1 = t1.Map(Relu);
+
+                Matrix<double> t2 = h1 * w2 + b2;
+                Matrix<double> h2 = t2.Map(Relu);
+
+                Matrix<double> t3 = h2 * w3 + b3;
+                Matrix<double> output = SoftMax(t3);
+
+                // Индекс с максимальным значением — предсказанное число
+                int predictedLabel = output.Row(0).MaximumIndex();
+
+                // Проверяем, правильно ли угадала сеть
+                if (predictedLabel == (int)trueLabel)
+                {
+                    correctPredictions++;
+                }
+            }
+
+            // Вычисляем точность
+            return (double)correctPredictions / totalSamples;
         }
     }
 }
