@@ -266,3 +266,183 @@ namespace AIModel
         }
     }
 }
+/*
+using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
+
+public static class ParallelTraining
+{
+    private static bool pauseRequested = false;
+    
+    // Класс для сохранения состояния обучения
+    public class TrainingState
+    {
+        public int LastEpoch { get; set; }
+        public double[,] W1 { get; set; }
+        public double[,] B1 { get; set; }
+        public double[,] W2 { get; set; }
+        public double[,] B2 { get; set; }
+        public double[,] W3 { get; set; }
+        public double[,] B3 { get; set; }
+    }
+
+    public static void TrainNeuralNetwork(List<string[]> data, Matrix<double> w1, Matrix<double> b1,
+                                          Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3,
+                                          double learningRate, int epochs, string saveFilePath)
+    {
+        Random random = new Random();
+        int startEpoch = LoadTrainingState(ref w1, ref b1, ref w2, ref b2, ref w3, ref b3, saveFilePath);
+
+        Console.WriteLine($"Начинаем обучение с эпохи {startEpoch + 1}/{epochs}...");
+
+        for (int epoch = startEpoch; epoch < epochs; epoch++)
+        {
+            Console.WriteLine($"Эпоха {epoch + 1}/{epochs}...");
+
+            // 🔄 Перемешиваем данные перед каждой эпохой
+            data = data.OrderBy(x => random.Next()).ToList();
+
+            // Используем Parallel.ForEach для обработки каждого примера параллельно
+            Parallel.ForEach(data, row =>
+            {
+                double trueVal = double.Parse(row[0]);
+                List<double> vals = row.Skip(1).Select(val => double.Parse(val) / 255.0).ToList();
+                Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(vals).ToRowMatrix();
+
+                // Прямой проход (forward propagation)
+                Matrix<double> t1 = inputX * w1 + b1;
+                Matrix<double> h1 = t1.Map(Relu);
+
+                Matrix<double> t2 = h1 * w2 + b2;
+                Matrix<double> h2 = t2.Map(Relu);
+
+                Matrix<double> t3 = h2 * w3 + b3;
+                Matrix<double> z = SoftMax(t3);
+
+                // Вычисление ошибки (градиенты)
+                Matrix<double> trueY = ValueToMatrix(trueVal, 10);
+                Matrix<double> dE_dt3 = z - trueY;
+                Matrix<double> dE_dw3 = h2.Transpose() * dE_dt3;
+                Matrix<double> dE_db3 = dE_dt3;
+
+                Matrix<double> dE_dh2 = dE_dt3 * w3.Transpose();
+                Matrix<double> dE_dt2 = dE_dh2.PointwiseMultiply(t2.Map(DivRelu));
+                Matrix<double> dE_dw2 = h1.Transpose() * dE_dt2;
+                Matrix<double> dE_db2 = dE_dt2;
+
+                Matrix<double> dE_dh1 = dE_dt2 * w2.Transpose();
+                Matrix<double> dE_dt1 = dE_dh1.PointwiseMultiply(t1.Map(DivRelu));
+                Matrix<double> dE_dw1 = inputX.Transpose() * dE_dt1;
+                Matrix<double> dE_db1 = dE_dt1;
+
+                // 🔒 Обновление весов с блокировкой
+                lock (w1)
+                {
+                    w1 -= learningRate * dE_dw1;
+                    b1 -= learningRate * dE_db1;
+                    w2 -= learningRate * dE_dw2;
+                    b2 -= learningRate * dE_db2;
+                    w3 -= learningRate * dE_dw3;
+                    b3 -= learningRate * dE_db3;
+                }
+            });
+
+            // 💾 Сохранение состояния после каждой эпохи
+            SaveTrainingState(epoch, w1, b1, w2, b2, w3, b3, saveFilePath);
+            Console.WriteLine($"✅ Эпоха {epoch + 1} завершена и сохранена!");
+
+            // Проверка на паузу
+            if (pauseRequested)
+            {
+                Console.WriteLine("⏸ Обучение приостановлено.");
+                break;
+            }
+        }
+    }
+
+    // Метод для сохранения состояния обучения
+    public static void SaveTrainingState(int epoch, Matrix<double> w1, Matrix<double> b1, 
+                                         Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3, 
+                                         string filePath)
+    {
+        var state = new TrainingState
+        {
+            LastEpoch = epoch + 1,
+            W1 = w1.ToArray(),
+            B1 = b1.ToArray(),
+            W2 = w2.ToArray(),
+            B2 = b2.ToArray(),
+            W3 = w3.ToArray(),
+            B3 = b3.ToArray()
+        };
+
+        string json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(filePath, json);
+    }
+
+    // Метод для загрузки состояния обучения
+    public static int LoadTrainingState(ref Matrix<double> w1, ref Matrix<double> b1, 
+                                        ref Matrix<double> w2, ref Matrix<double> b2, 
+                                        ref Matrix<double> w3, ref Matrix<double> b3, string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            Console.WriteLine("Файл с весами не найден. Начинаем обучение с 0-й эпохи.");
+            return 0;
+        }
+
+        string json = File.ReadAllText(filePath);
+        TrainingState state = JsonSerializer.Deserialize<TrainingState>(json);
+
+        w1 = DenseMatrix.OfArray(state.W1);
+        b1 = DenseMatrix.OfArray(state.B1);
+        w2 = DenseMatrix.OfArray(state.W2);
+        b2 = DenseMatrix.OfArray(state.B2);
+        w3 = DenseMatrix.OfArray(state.W3);
+        b3 = DenseMatrix.OfArray(state.B3);
+
+        Console.WriteLine($"✅ Веса загружены. Продолжаем обучение с эпохи {state.LastEpoch}.");
+        return state.LastEpoch;
+    }
+
+    // Метод для установки паузы
+    public static void PauseTraining()
+    {
+        pauseRequested = true;
+    }
+
+    public static double Relu(double val) => Math.Max(0, val);
+    public static double DivRelu(double val) => val < 0 ? 0d : 1d;
+
+    public static Matrix<double> SoftMax(Matrix<double> t)
+    {
+        double sum = t.Row(0).Sum(x => Math.Exp(x));
+        return t.Map(x => Math.Exp(x) / sum);
+    }
+
+    public static Matrix<double> ValueToMatrix(double value, int dimensions)
+    {
+        double[] arr = new double[dimensions];
+        arr[(int)value] = 1d;
+        return Vector<double>.Build.Dense(arr).ToRowMatrix();
+    }
+}
+
+
+📌 Как использовать этот код?
+
+string saveFilePath = "training_state.json";
+ParallelTraining.TrainNeuralNetwork(data, w1, b1, w2, b2, w3, b3, learningRate: 0.001, epochs: 10, saveFilePath);
+
+
+Если обучение нужно приостановить, вызовите:
+
+ParallelTraining.PauseTraining();
+ */
