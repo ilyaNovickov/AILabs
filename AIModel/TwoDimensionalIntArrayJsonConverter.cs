@@ -2,6 +2,9 @@
 using System.Text.Json;
 using System.Linq;
 
+/// <summary>
+/// Класс для сериазилации 2D массива в JSON (см https://makolyte.com/csharp-serialize-and-deserialize-a-multidimensional-array-to-json/)
+/// </summary>
 public class TwoDimensionalIntArrayJsonConverter : JsonConverter<double[,]>
 {
     public override double[,]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

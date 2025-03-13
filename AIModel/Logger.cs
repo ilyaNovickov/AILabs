@@ -6,8 +6,14 @@ using System.Threading.Tasks;
 
 namespace AIModel
 {
+    /// <summary>
+    /// Класс доп информации о событии логирования
+    /// </summary>
     public class LogEventArgs : EventArgs
     {
+        /// <summary>
+        /// Сообщение
+        /// </summary>
         public string? Message { get; private set; } = null;
 
         public LogEventArgs(string? message)
@@ -16,13 +22,21 @@ namespace AIModel
         }
     }
 
-    public static class Logger
+    /// <summary>
+    /// класс логгирования
+    /// </summary>
+    public class Logger : IDisposable
     {
-        private static string? filePath = null;
-        private static FileStream? stream = null;
-        private static StreamWriter sw = null;
+        public static Logger Instance { get; set; }
 
-        public static string? FilePath
+        private string? filePath = null;
+        private FileStream? stream = null;
+        private StreamWriter? sw = null;
+
+        /// <summary>
+        /// Путь к файлу
+        /// </summary>
+        public string? FilePath
         {
             get => filePath;
             set
@@ -42,18 +56,33 @@ namespace AIModel
             }
         }
 
+        /// <summary>
+        /// Событие логирования
+        /// </summary>
         public static event EventHandler<LogEventArgs>? LogEvent;
 
+        /// <summary>
+        /// Логирование сообщения в файл
+        /// </summary>
+        /// <param name="data"></param>
         public static void Log(string data)
         {
-            sw.WriteLine(data);
+            Instance._Log(data);
+        }
+
+        private void _Log(string data)
+        {
+            sw?.WriteLine(data);
             LogEvent?.Invoke(null, new LogEventArgs(data));
         }
 
-        public static void Dispose()
+        /// <summary>
+        /// Освобождение ресурсов потоков записи данных в файл
+        /// </summary>
+        public void Dispose()
         {
-            stream?.Dispose();
             sw?.Dispose();
+            stream?.Dispose(); 
         }
     }
 }

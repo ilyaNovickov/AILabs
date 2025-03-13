@@ -2,7 +2,12 @@
 {
     public class CSVHelper
     {
-        //Список строк строк файла CSV; кадлый элемент - строка разделённая запятой ',' 
+        /// <summary>
+        /// Получение списка строк из CSV файла, где каждый 
+        /// элемент разделён запятой 'б'
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
         public static IEnumerable<string[]> ReadCSV(string filePath)
         {
             var Lines = File.ReadLines(filePath);
@@ -13,6 +18,11 @@
             return CSV;
         }
 
+        /// <summary>
+        /// Запись данных в CSV файл (разделитель ';')
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="data"></param>
         public static void Write(string path, IEnumerable<double> data)
         {
             using (FileStream s = new FileStream(path, FileMode.Create, FileAccess.Write))

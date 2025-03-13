@@ -4,8 +4,9 @@ using System.Text.Json;
 
 namespace AIModel
 {
-
-    // Класс для хранения весов
+    /// <summary>
+    /// Класс для хранения матриц обученной нейросети
+    /// </summary>
     public class ModelWeights
     {
         public double[,] W1 { get; set; }
@@ -15,7 +16,16 @@ namespace AIModel
         public double[,] W3 { get; set; }
         public double[,] B3 { get; set; }
 
-        // Метод сохранения весов
+        /// <summary>
+        /// Сохранение матриц в файл
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
         public static void SaveWeights(string filePath, Matrix<double> w1, Matrix<double> b1,
                                        Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3)
         {
@@ -30,14 +40,21 @@ namespace AIModel
             };
 
             var options = new JsonSerializerOptions();
-            options.WriteIndented = true;
-            options.Converters.Add(new TwoDimensionalIntArrayJsonConverter());
+            options.WriteIndented = true;//сериализаци с доп пробелами для красивой печати
+                                         //(так написано в https://learn.microsoft.com/ru-ru/dotnet/api/system.text.json.jsonserializeroptions.writeindented?view=net-8.0#system-text-json-jsonserializeroptions-writeindented)
+            options.Converters.Add(new TwoDimensionalIntArrayJsonConverter());//для 2d массива
             string json = JsonSerializer.Serialize(weights, options);
             File.WriteAllText(filePath, json);
 
             Logger.Log("Веса успешно сохранены!");
         }
 
+        /// <summary>
+        /// Загрузка матриц обученной нейросети
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        /// <exception cref="FileNotFoundException"></exception>
         public static (Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>)
        LoadWeights(string filePath)
         {

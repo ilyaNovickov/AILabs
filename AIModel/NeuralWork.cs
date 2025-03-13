@@ -30,11 +30,17 @@ using MathNet.Numerics.LinearAlgebra.Double;
 
 namespace AIModel
 {
-    public class NeuralWork
+    /// <summary>
+    /// Класс для работы с нейросетью
+    /// </summary>
+    public static class NeuralWork
     {
+        //Для отмены обучения
         private static bool pauseRequested = false;
 
-        // Класс для сохранения состояния обучения
+        /// <summary>
+        /// Класс для хранение промежуточных матриц при прерывании обучения
+        /// </summary>
         public class TrainingState
         {
             public int LastEpoch { get; set; }
@@ -46,67 +52,97 @@ namespace AIModel
             public double[,] B3 { get; set; }
         }
 
+        /// <summary>
+        /// Обучение нейросети
+        /// Возращает матрицы обученной нейростеи, а также
+        /// точность её и энтропию
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
+        /// <param name="learningRate"></param>
+        /// <param name="epochs"></param>
+        /// <param name="saveFilePath"></param>
+        /// <param name="useSavedData">!!! Указывает на то, что нужно восстановить значение прошлого обучения !!!</param>
+        /// <returns></returns>
         public static (List<double>, List<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>) 
             TrainNeuralNetwork(List<string[]> data, Matrix<double> w1, Matrix<double> b1,
                                               Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3,
                                               double learningRate, int epochs, string saveFilePath, bool useSavedData = false)
         {
+            //Функция активации и её производная
+            Func<double, double> activationFunc = ExtraFuncs.Relu;
+            Func<double, double> divActivationFunc = ExtraFuncs.DivRelu;
+
             Random random = new Random();
 
-            Matrix<double> w1Clone = w1.Clone();
+            //Matrix<double> w1Clone = w1.Clone();
 
+            //Эпоха с которой нужно начать/продолжить обучение
             int startEpoch = 0;
             if (useSavedData)
-                startEpoch = LoadTrainingState(ref w1, ref b1, ref w2, ref b2, ref w3, ref b3, saveFilePath);
+                startEpoch = LoadTrainingState(ref w1, ref b1, ref w2, ref b2, ref w3, ref b3, saveFilePath) - 1;
 
             Logger.Log($"Начинаем обучение с эпохи {startEpoch + 1}/{epochs}...");
 
+            //Список точности (accuraty)
             List<double> accuratyList = new List<double>();
+            //Список энтропии E
             List<double> e_List = new List<double>();
             List<double> e_Final = new List<double>();
 
+            //Обучение по эпохам
             for (int epoch = startEpoch; epoch < epochs; epoch++)
             {
                 Logger.Log($"Эпоха {epoch + 1}/{epochs}...");
 
-                // 🔄 Перемешиваем данные перед каждой эпохой
+                //Перемешиваем данные перед каждой эпохой
                 data = data.OrderBy(x => random.Next()).ToList();
 
-                // Используем Parallel.ForEach для обработки каждого примера параллельно
+                //Перебор данных параррельно в нескольких потоках
                 Parallel.ForEach(data, row =>
                 {
+                    //Истинное значение числа, изображённого на изображении
                     double trueVal = double.Parse(row[0]);
+                    //Значение пикселей изображения
                     List<double> vals = row.Skip(1).Select(val => double.Parse(val) / 255.0).ToList();
                     Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(vals).ToRowMatrix();
 
-                    // Прямой проход (forward propagation)
+                    //Обучение нейростеи
                     Matrix<double> t1 = inputX * w1 + b1;
-                    Matrix<double> h1 = t1.Map(ExtraFuncs.Relu);
+                    Matrix<double> h1 = t1.Map(activationFunc);
 
                     Matrix<double> t2 = h1 * w2 + b2;
-                    Matrix<double> h2 = t2.Map(ExtraFuncs.Relu);
+                    Matrix<double> h2 = t2.Map(activationFunc);
 
                     Matrix<double> t3 = h2 * w3 + b3;
+
+                    //результат
                     Matrix<double> z = ExtraFuncs.SoftMax(t3);
+                    //кросс энтропия
                     double E = ExtraFuncs.CrossEntropia(trueVal, z);
 
-                    // Вычисление ошибки (градиенты)
+                    //Вычисление ошибки и метод градиентного спуска
                     Matrix<double> trueY = ExtraFuncs.ValueToMatrix(trueVal, 10);
                     Matrix<double> dE_dt3 = z - trueY;
                     Matrix<double> dE_dw3 = h2.Transpose() * dE_dt3;
                     Matrix<double> dE_db3 = dE_dt3;
 
                     Matrix<double> dE_dh2 = dE_dt3 * w3.Transpose();
-                    Matrix<double> dE_dt2 = dE_dh2.PointwiseMultiply(t2.Map(ExtraFuncs.DivRelu));
+                    Matrix<double> dE_dt2 = dE_dh2.PointwiseMultiply(t2.Map(divActivationFunc));
                     Matrix<double> dE_dw2 = h1.Transpose() * dE_dt2;
                     Matrix<double> dE_db2 = dE_dt2;
 
                     Matrix<double> dE_dh1 = dE_dt2 * w2.Transpose();
-                    Matrix<double> dE_dt1 = dE_dh1.PointwiseMultiply(t1.Map(ExtraFuncs.DivRelu));
+                    Matrix<double> dE_dt1 = dE_dh1.PointwiseMultiply(t1.Map(divActivationFunc));
                     Matrix<double> dE_dw1 = inputX.Transpose() * dE_dt1;
                     Matrix<double> dE_db1 = dE_dt1;
 
-                    // 🔒 Обновление весов с блокировкой
+                    //Обновление матриц с блокировкой потока
                     lock (w1)
                     {
                         w1 -= learningRate * dE_dw1;
@@ -117,16 +153,29 @@ namespace AIModel
                         b3 -= learningRate * dE_db3;
 
                         e_List.Add(E);
+
+                        //Проверка на паузу
+                        if (pauseRequested)
+                        {
+                            //Сохранение состояния при отмены обуения
+                            SaveTrainingState(epoch, w1, b1, w2, b2, w3, b3, saveFilePath);
+                            Logger.Log($"Эпоха {epoch + 1} завершена и сохранена!");
+
+                            Logger.Log("Обучение приостановлено.");
+                            return;
+                        }
                     }
                 });
 
+                //Сохранение кросс энтропииы
                 e_Final.Add(e_List.Sum() / e_List.Count);
+                //Вычисление и сохранение точности
                 accuratyList.Add(CalculateAccuracy(data, w1, b1, w2, b2, w3, b3));
 
-                // Проверка на паузу
+                //Проверка на паузу
                 if (pauseRequested)
                 {
-                    // 💾 Сохранение состояния после каждой эпохи
+                    //Сохранение состояния при отмены обуения
                     SaveTrainingState(epoch, w1, b1, w2, b2, w3, b3, saveFilePath);
                     Logger.Log($"Эпоха {epoch + 1} завершена и сохранена!");
 
@@ -138,9 +187,24 @@ namespace AIModel
             return (e_Final, accuratyList, w1, b1, w2, b2, w3, b3);
         }
 
+        /// <summary>
+        /// тестирование работы нейростеи с введённымии данными
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
+        /// <returns></returns>
         public static (List<double>, List<double>) TestNeuralNetwork(List<string[]> data, Matrix<double> w1, Matrix<double> b1,
                                               Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3)
         {
+            //Функция активации и её производная
+            Func<double, double> activationFunc = ExtraFuncs.Relu;
+            Func<double, double> divActivationFunc = ExtraFuncs.DivRelu;
+
             Random random = new Random();
 
 
@@ -148,41 +212,37 @@ namespace AIModel
             List<double> e_List = new List<double>();
             List<double> e_Final = new List<double>();
 
-
-            // 🔄 Перемешиваем данные перед каждой эпохой
+            //Перемешиваем данные 
             //data = data.OrderBy(x => random.Next()).ToList();
 
-            // Используем Parallel.ForEach для обработки каждого примера параллельно
             Parallel.ForEach(data, row =>
             {
                 double trueVal = double.Parse(row[0]);
                 List<double> vals = row.Skip(1).Select(val => double.Parse(val) / 255.0).ToList();
                 Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(vals).ToRowMatrix();
 
-                // Прямой проход (forward propagation)
                 Matrix<double> t1 = inputX * w1 + b1;
-                Matrix<double> h1 = t1.Map(ExtraFuncs.Relu);
+                Matrix<double> h1 = t1.Map(activationFunc);
 
                 Matrix<double> t2 = h1 * w2 + b2;
-                Matrix<double> h2 = t2.Map(ExtraFuncs.Relu);
+                Matrix<double> h2 = t2.Map(activationFunc);
 
                 Matrix<double> t3 = h2 * w3 + b3;
                 Matrix<double> z = ExtraFuncs.SoftMax(t3);
                 double E = ExtraFuncs.CrossEntropia(trueVal, z);
 
-                // Вычисление ошибки (градиенты)
                 Matrix<double> trueY = ExtraFuncs.ValueToMatrix(trueVal, 10);
                 Matrix<double> dE_dt3 = z - trueY;
                 Matrix<double> dE_dw3 = h2.Transpose() * dE_dt3;
                 Matrix<double> dE_db3 = dE_dt3;
 
                 Matrix<double> dE_dh2 = dE_dt3 * w3.Transpose();
-                Matrix<double> dE_dt2 = dE_dh2.PointwiseMultiply(t2.Map(ExtraFuncs.DivRelu));
+                Matrix<double> dE_dt2 = dE_dh2.PointwiseMultiply(t2.Map(divActivationFunc));
                 Matrix<double> dE_dw2 = h1.Transpose() * dE_dt2;
                 Matrix<double> dE_db2 = dE_dt2;
 
                 Matrix<double> dE_dh1 = dE_dt2 * w2.Transpose();
-                Matrix<double> dE_dt1 = dE_dh1.PointwiseMultiply(t1.Map(ExtraFuncs.DivRelu));
+                Matrix<double> dE_dt1 = dE_dh1.PointwiseMultiply(t1.Map(divActivationFunc));
                 Matrix<double> dE_dw1 = inputX.Transpose() * dE_dt1;
                 Matrix<double> dE_db1 = dE_dt1;
 
@@ -194,17 +254,27 @@ namespace AIModel
 
             e_Final.Add(e_List.Sum() / e_List.Count);
             accuratyList.Add(CalculateAccuracy(data, w1, b1, w2, b2, w3, b3));
-            
 
             return (e_Final, accuratyList);
         }
 
-        // Метод для сохранения состояния обучения
+        /// <summary>
+        /// Сохранение промежуточных состояний матриц нейросети
+        /// для отмены обучения и возобнавдения её работы
+        /// </summary>
+        /// <param name="epoch"></param>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
+        /// <param name="filePath"></param>
         public static void SaveTrainingState(int epoch, Matrix<double> w1, Matrix<double> b1,
                                              Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3,
                                              string filePath)
         {
-            var state = new TrainingState
+            TrainingState state = new TrainingState
             {
                 LastEpoch = epoch + 1,
                 W1 = w1.ToArray(),
@@ -221,7 +291,17 @@ namespace AIModel
             File.WriteAllText(filePath, json);
         }
 
-        // Метод для загрузки состояния обучения
+        /// <summary>
+        /// Загрузка матриц нейростеи для продолжения обучения
+        /// </summary>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
         public static int LoadTrainingState(ref Matrix<double> w1, ref Matrix<double> b1,
                                             ref Matrix<double> w2, ref Matrix<double> b2,
                                             ref Matrix<double> w3, ref Matrix<double> b3, string filePath)
@@ -248,27 +328,40 @@ namespace AIModel
             return state.LastEpoch;
         }
 
-        // Метод для установки паузы
+        /// <summary>
+        /// Отмена обучения
+        /// </summary>
         public static void PauseTraining()
         {
             pauseRequested = true;
         }
 
-        public static double CalculateAccuracy(IEnumerable<string[]> testData, Matrix<double> w1, Matrix<double> b1,
+        /// <summary>
+        /// Вычисление точности (accuraty) нейростеи
+        /// </summary>
+        /// <param name="testData"></param>
+        /// <param name="w1"></param>
+        /// <param name="b1"></param>
+        /// <param name="w2"></param>
+        /// <param name="b2"></param>
+        /// <param name="w3"></param>
+        /// <param name="b3"></param>
+        /// <returns></returns>
+        public static double CalculateAccuracy
+            (IEnumerable<string[]> testData, Matrix<double> w1, Matrix<double> b1,
                                       Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3)
         {
-            int correctPredictions = 0;
-            int totalSamples = testData.Count();
+            //кол-во правильных ответов
+            int correctAnswers = 0;
 
-            foreach (var row in testData)
+
+            foreach (string[] row in testData)
             {
-                double trueLabel = double.Parse(row[0]); // Истинное значение
+                double trueValue = double.Parse(row[0]);
 
-                // Извлекаем пиксели изображения и нормализуем
                 List<double> pixelValues = row.Skip(1).Select(val => double.Parse(val) / 255.0).ToList();
                 Matrix<double> inputX = Vector<double>.Build.DenseOfEnumerable(pixelValues).ToRowMatrix();
 
-                // Прямой проход (forward propagation)
                 Matrix<double> t1 = inputX * w1 + b1;
                 Matrix<double> h1 = t1.Map(ExtraFuncs.Relu);
 
@@ -278,20 +371,24 @@ namespace AIModel
                 Matrix<double> t3 = h2 * w3 + b3;
                 Matrix<double> output = ExtraFuncs.SoftMax(t3);
 
-                // Индекс с максимальным значением — предсказанное число
-                int predictedLabel = output.Row(0).MaximumIndex();
+                //Индекс с максимальным значением — предсказанное число
+                int finalAnswer = output.Row(0).MaximumIndex();
 
-                // Проверяем, правильно ли угадала сеть
-                if (predictedLabel == (int)trueLabel)
+                //Проверяем, правильно ли угадала сеть
+                if (finalAnswer == (int)trueValue)
                 {
-                    correctPredictions++;
+                    correctAnswers++;
                 }
             }
 
             // Вычисляем точность
-            return (double)correctPredictions / totalSamples;
+            return (double)correctAnswers / testData.Count();
         }
 
+        /// <summary>
+        /// Получение массивов, заполненых случайными числами в интервале [-1; +1] 
+        /// </summary>
+        /// <returns></returns>
         public static (Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>)
             FillRandomValues()
         {

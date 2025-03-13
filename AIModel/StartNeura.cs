@@ -33,16 +33,30 @@ namespace AIModel
 #else
             null;
 #endif
+
+        /// <summary>
+        /// Файл с данными для обучения
+        /// </summary>
         public static string? FileCSV
         {
             get => file;
             set => file = value;
         }
 
+        /// <summary>
+        /// Время обучения
+        /// </summary>
         public static TimeSpan Time { get; private set; }
 
+        /// <summary>
+        /// Использовать обученные нейроны
+        /// </summary>
         public static bool UseLearnedNeuro { get; set; }
 
+        /// <summary>
+        /// Обучение нейростеи
+        /// </summary>
+        /// <param name="continueLearning">Продолжить обучение сети с случае паузы</param>
         public static void RunLearning(bool continueLearning = false)
         {
             double learningRate = 0.001d;
@@ -60,7 +74,7 @@ namespace AIModel
                 (w1, b1, w2, b2, w3, b3) = NeuralWork.FillRandomValues();
             }
 
-            Matrix<double> w1Clone = w1.Clone();
+            //Matrix<double> w1Clone = w1.Clone();
 
             List<double> eList = null;
             List<double> accuratyList = null;
@@ -77,6 +91,10 @@ namespace AIModel
             CSVHelper.Write("MNIST_TRAIN_Accuraty.csv", accuratyList);
         }
 
+        /// <summary>
+        /// Тестирование оубченной нейростеи
+        /// Обученные матрицы считываются с файлов сохранения нейростеи после обучения
+        /// </summary>
         public static void TestNeuraExtra()
         {
             var (w1, b1, w2, b2, w3, b3) = ModelWeights.LoadWeights("model_weights.json");
@@ -90,6 +108,9 @@ namespace AIModel
             CSVHelper.Write("MNIST_TEST_Accuraty.csv", accuratyList);
         }
 
+        /// <summary>
+        /// Остановка обучения
+        /// </summary>
         public static void Stop()
         {
             NeuralWork.PauseTraining();
