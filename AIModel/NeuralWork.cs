@@ -1,31 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using MathNet.Numerics.LinearAlgebra;
-using MathNet.Numerics.LinearAlgebra.Storage;
-using MathNet.Numerics.LinearAlgebra.Double;
-using MathNet.Numerics.Distributions;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
-using System.Xml.Serialization;
-using System.Diagnostics;
-using System;
-using System.Collections.Concurrent;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
+using System.Text.Json;
 
 
 namespace AIModel
@@ -69,7 +45,7 @@ namespace AIModel
         /// <param name="saveFilePath"></param>
         /// <param name="useSavedData">!!! Указывает на то, что нужно восстановить значение прошлого обучения !!!</param>
         /// <returns></returns>
-        public static (List<double>, List<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>) 
+        public static (List<double>, List<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>, Matrix<double>)
             TrainNeuralNetwork(List<string[]> data, Matrix<double> w1, Matrix<double> b1,
                                               Matrix<double> w2, Matrix<double> b2, Matrix<double> w3, Matrix<double> b3,
                                               double learningRate, int epochs, string saveFilePath, bool useSavedData = false)

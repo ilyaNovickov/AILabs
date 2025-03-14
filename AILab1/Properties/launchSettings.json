@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "AILab1": {
+      "commandName": "Project"
+    },
+    "learn": {
+      "commandName": "Project",
+      "commandLineArgs": "--learningRate 0,001 --epochCount 20 --path \"mnist_train.csv\" --mode learn"
+    },
+    "test": {
+      "commandName": "Project",
+      "commandLineArgs": "--path \"mnist_test.csv\" --mode test"
+    },
+    "full": {
+      "commandName": "Project",
+      "commandLineArgs": "--learningRate 0,001 --epochCount 20 --path \"mnist_train.csv\" --mode learn --path \"mnist_test.csv\" --mode test"
+    }
+  }
+}

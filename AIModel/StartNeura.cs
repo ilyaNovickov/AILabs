@@ -53,14 +53,17 @@ namespace AIModel
         /// </summary>
         public static bool UseLearnedNeuro { get; set; }
 
+
+        public static double LearningRate { get; set; } = 0.001d;
+
+        public static int EpochCount { get; set; } = 20;
+
         /// <summary>
         /// Обучение нейростеи
         /// </summary>
         /// <param name="continueLearning">Продолжить обучение сети с случае паузы</param>
         public static void RunLearning(bool continueLearning = false)
         {
-            double learningRate = 0.001d;
-
             IEnumerable<string[]> data = CSVHelper.ReadCSV(FileCSV);
 
             string saveFilePath = "training_state.json";
@@ -81,7 +84,9 @@ namespace AIModel
 
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            (eList, accuratyList, w1, b1, w2, b2, w3, b3) = NeuralWork.TrainNeuralNetwork(data.ToList<string[]>(), w1, b1, w2, b2, w3, b3, learningRate: 0.001, epochs: 20, saveFilePath, continueLearning);
+            (eList, accuratyList, w1, b1, w2, b2, w3, b3) = 
+                NeuralWork.TrainNeuralNetwork(data.ToList<string[]>(), 
+                w1, b1, w2, b2, w3, b3, learningRate: LearningRate, epochs: EpochCount, saveFilePath, continueLearning);
             sw.Stop();
             Time = sw.Elapsed;
 
@@ -95,14 +100,22 @@ namespace AIModel
         /// Тестирование оубченной нейростеи
         /// Обученные матрицы считываются с файлов сохранения нейростеи после обучения
         /// </summary>
-        public static void TestNeuraExtra()
+        public static void RunTest()
         {
             var (w1, b1, w2, b2, w3, b3) = ModelWeights.LoadWeights("model_weights.json");
-            string extraFile = "mnist_test.csv";
 
-            IEnumerable<string[]> data = CSVHelper.ReadCSV(extraFile);
+            IEnumerable<string[]> data = CSVHelper.ReadCSV(FileCSV);
 
             var (eList, accuratyList) = NeuralWork.TestNeuralNetwork(data.ToList<string[]>(), w1, b1, w2, b2, w3, b3);
+
+            try
+            {
+                Logger.Log($"Энтропия : {eList[0]}\nТочность : {accuratyList[0]}");
+            }
+            catch
+            {
+                Logger.Log("Пусто?");
+            }
 
             CSVHelper.Write("MNIST_TEST_E.csv", eList);
             CSVHelper.Write("MNIST_TEST_Accuraty.csv", accuratyList);
