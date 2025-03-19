@@ -1,6 +1,10 @@
 ﻿using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Reflection.Emit;
+using System.Text;
 using AIModel;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AILab1
 {
@@ -8,17 +12,8 @@ namespace AILab1
     {
         static void Main(string[] args)
         {
-            Work(args);
-            //StartNeura.FileCSV = "mnist_train.csv";
-
-            //StartNeura.RunLearning();
-
-            //Logger.Log($"Время обучения : {StartNeura.Time.ToString("hh\\:mm\\:ss")}");
-
-            //StartNeura.RunTest();
-            //"mnist_test.csv";
-
-            
+            //Work(args);
+            Work2();
         }
 
         private static void Work(string[] args)
@@ -74,6 +69,36 @@ namespace AILab1
 
 
             Logger.Instance.Dispose();
+        }
+
+        private static void Work2()
+        {
+            const string trainPath = "mnist_train.csv";
+            const string testPath = "mnist_test.csv";
+
+            var data = CSVHelper.ReadCSV(testPath);
+            IEnumerable<string> val;
+            string trueVal = "";
+            {
+                var data2 = data.ElementAt<string[]>(10);
+                trueVal = data2.ElementAt<string>(0);
+                val = data2.Skip(1);
+            }
+            
+
+            StringBuilder sb = new();
+            int count = 0;
+
+            for (int i = 0; i < val.Count(); i++)
+            {
+                sb.Append(val.ElementAt<string>(i) == "0" ? ' ' : '#');
+                count++;
+                if (count == 28)
+                {
+                    count = 0;
+                    sb.AppendLine();
+                }
+            }
         }
     }
 }
