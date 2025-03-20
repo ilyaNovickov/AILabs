@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
 using AIModel;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+
 
 namespace AILab1
 {
@@ -73,32 +73,38 @@ namespace AILab1
 
         private static void Work2()
         {
+            Logger.Instance = new Logger()
+            {
+                FilePath = "log.txt"
+            };
+            Logger.LogEvent += (sender, e) => { Console.WriteLine(e.Message); };
+            Console.CancelKeyPress += (sender, e) => { StartNeura.Stop(); };
+
             const string trainPath = "mnist_train.csv";
             const string testPath = "mnist_test.csv";
 
-            var data = CSVHelper.ReadCSV(testPath);
-            IEnumerable<string> val;
-            string trueVal = "";
-            {
-                var data2 = data.ElementAt<string[]>(10);
-                trueVal = data2.ElementAt<string>(0);
-                val = data2.Skip(1);
-            }
-            
+            StartNeura.FileCSV = trainPath;
+            StartNeura.RunLearning();
+            StartNeura.FileCSV = testPath;
+            StartNeura.RunTest();
 
-            StringBuilder sb = new();
-            int count = 0;
+            File.Move("MNIST_TRAIN_E.csv", @"old\" + "MNIST_TRAIN_E.csv", true);
+            File.Move("MNIST_TRAIN_Accuraty.csv", @"old\" + "MNIST_TRAIN_Accuraty.csv", true);
+            File.Move("MNIST_TEST_E.csv", @"old\" + "MNIST_TEST_E.csv", true);
+            File.Move("MNIST_TEST_Accuraty.csv", @"old\" + "MNIST_TEST_Accuraty.csv", true);
 
-            for (int i = 0; i < val.Count(); i++)
-            {
-                sb.Append(val.ElementAt<string>(i) == "0" ? ' ' : '#');
-                count++;
-                if (count == 28)
-                {
-                    count = 0;
-                    sb.AppendLine();
-                }
-            }
+            StartNeura.RunTest(negative: true);
+
+            File.Move(StartNeura.SavePath, @"old\" + StartNeura.SavePath, true);
+            File.Move("MNIST_TEST_E.csv", @"negativeTest\" + "MNIST_TEST_E.csv", true);
+            File.Move("MNIST_TEST_Accuraty.csv", @"negativeTest\" + "MNIST_TEST_Accuraty.csv", true);
+
+            StartNeura.FileCSV = trainPath;
+            StartNeura.RunLearning(negative: true);
+            StartNeura.FileCSV = testPath;
+            StartNeura.RunTest(negative: true);
+
+            Logger.Instance.Dispose();
         }
     }
 }

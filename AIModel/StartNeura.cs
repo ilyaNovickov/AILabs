@@ -53,6 +53,8 @@ namespace AIModel
         /// </summary>
         public static bool UseLearnedNeuro { get; set; }
 
+        public static string? SavePath { get; set; } = "model_weights.json";
+
 
         public static double LearningRate { get; set; } = 0.001d;
 
@@ -62,7 +64,7 @@ namespace AIModel
         /// Обучение нейростеи
         /// </summary>
         /// <param name="continueLearning">Продолжить обучение сети с случае паузы</param>
-        public static void RunLearning(bool continueLearning = false)
+        public static void RunLearning(bool negative = false, bool continueLearning = false)
         {
             IEnumerable<string[]> data = CSVHelper.ReadCSV(FileCSV);
 
@@ -71,13 +73,13 @@ namespace AIModel
             Matrix<double> w1 = null, b1 = null, w2 = null, b2 = null, w3 = null, b3 = null;
 
             if (UseLearnedNeuro)
-                (w1, b1, w2, b2, w3, b3) = ModelWeights.LoadWeights("model_weights.json");
+                (w1, b1, w2, b2, w3, b3) = ModelWeights.LoadWeights(SavePath);
             else
             {
                 (w1, b1, w2, b2, w3, b3) = NeuralWork.FillRandomValues();
             }
 
-            //Matrix<double> w1Clone = w1.Clone();
+            data = negative ? Extramethods.GetHalfNegativeVals(data.ToList()) : data;
 
             List<double> eList = null;
             List<double> accuratyList = null;
@@ -90,7 +92,7 @@ namespace AIModel
             sw.Stop();
             Time = sw.Elapsed;
 
-            ModelWeights.SaveWeights("model_weights.json", w1, b1, w2, b2, w3, b3);
+            ModelWeights.SaveWeights(SavePath, w1, b1, w2, b2, w3, b3);
 
             CSVHelper.Write("MNIST_TRAIN_E.csv", eList);
             CSVHelper.Write("MNIST_TRAIN_Accuraty.csv", accuratyList);
@@ -100,11 +102,13 @@ namespace AIModel
         /// Тестирование оубченной нейростеи
         /// Обученные матрицы считываются с файлов сохранения нейростеи после обучения
         /// </summary>
-        public static void RunTest()
+        public static void RunTest(bool negative = false)
         {
             var (w1, b1, w2, b2, w3, b3) = ModelWeights.LoadWeights("model_weights.json");
 
             IEnumerable<string[]> data = CSVHelper.ReadCSV(FileCSV);
+
+            data = negative ? Extramethods.GetHalfNegativeVals(data.ToList()) : data;
 
             var (eList, accuratyList) = NeuralWork.TestNeuralNetwork(data.ToList<string[]>(), w1, b1, w2, b2, w3, b3);
 

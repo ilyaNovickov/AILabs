@@ -27,7 +27,7 @@ namespace AIModel
     /// </summary>
     public class Logger : IDisposable
     {
-        public static Logger Instance { get; set; }
+        public static Logger? Instance { get; set; }
 
         private string? filePath = null;
         private FileStream? stream = null;
@@ -67,7 +67,7 @@ namespace AIModel
         /// <param name="data"></param>
         public static void Log(string data)
         {
-            Instance._Log(data);
+            Instance?._Log(data);
         }
 
         private void _Log(string data)

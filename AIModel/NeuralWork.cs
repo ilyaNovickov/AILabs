@@ -77,6 +77,7 @@ namespace AIModel
                 Logger.Log($"Эпоха {epoch + 1}/{epochs}...");
 
                 //Перемешиваем данные перед каждой эпохой
+                //data = Extramethods.GetHalfNegativeVals(data).OrderBy(x => random.Next()).ToList();
                 data = data.OrderBy(x => random.Next()).ToList();
 
                 //Перебор данных параррельно в нескольких потоках
@@ -190,6 +191,7 @@ namespace AIModel
 
             //Перемешиваем данные 
             //data = data.OrderBy(x => random.Next()).ToList();
+            //data = Extramethods.GetHalfNegativeVals(data);
 
             Parallel.ForEach(data, row =>
             {
